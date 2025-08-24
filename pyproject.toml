@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
-    {name = "Your Name", email = "your.email@example.com"},
+    {name = "Enrico Maihack", email = "enrico@mindbit.net"},
 ]
 keywords = ["unifi", "mcp", "network", "automation", "claude", "ai"]
 classifiers = [
@@ -52,7 +52,7 @@ unifi-network-mcp = "src.main:main"
 mcp-server-unifi-network = "src.main:main"  # Alternative name
 
 [project.urls]
-Homepage = "https://github.com/yourusername/unifi-network-mcp"
-Documentation = "https://github.com/yourusername/unifi-network-mcp#readme"
-Repository = "https://github.com/yourusername/unifi-network-mcp.git"
-Issues = "https://github.com/yourusername/unifi-network-mcp/issues"
+Homepage = "https://github.com/Zalimba79/unifi-network-mcp"
+Documentation = "https://github.com/Zalimba79/unifi-network-mcp#readme"
+Repository = "https://github.com/Zalimba79/unifi-network-mcp.git"
+Issues = "https://github.com/Zalimba79/unifi-network-mcp/issues"
