@@ -73,7 +73,7 @@ class ClientManager:
             api_request = ApiRequest(
                 method="post",
                 path="/cmd/stamgr",
-                json={"mac": client_mac, "cmd": "block-sta"}
+                data={"mac": client_mac, "cmd": "block-sta"}
             )
             # Call the updated request method
             await self._connection.request(api_request)
@@ -91,7 +91,7 @@ class ClientManager:
             api_request = ApiRequest(
                 method="post",
                 path="/cmd/stamgr",
-                json={"mac": client_mac, "cmd": "unblock-sta"}
+                data={"mac": client_mac, "cmd": "unblock-sta"}
             )
             # Call the updated request method
             await self._connection.request(api_request)
@@ -114,7 +114,7 @@ class ClientManager:
             api_request = ApiRequest(
                 method="put",
                 path=f"/upd/user/{client_id}",
-                json={"name": name}
+                data={"name": name}
             )
             await self._connection.request(api_request)
             logger.info(f"Rename command sent for client {client_mac} to '{name}'")
@@ -130,7 +130,7 @@ class ClientManager:
             api_request = ApiRequest(
                 method="post",
                 path="/cmd/stamgr",
-                json={"mac": client_mac, "cmd": "kick-sta"}
+                data={"mac": client_mac, "cmd": "kick-sta"}
             )
             await self._connection.request(api_request)
             logger.info(f"Force reconnect (kick) command sent for client {client_mac}")
@@ -169,7 +169,7 @@ class ClientManager:
             api_request = ApiRequest(
                 method="post",
                 path="/cmd/stamgr",
-                json=payload
+                data=payload
             )
             # Call the updated request method
             await self._connection.request(api_request)
@@ -186,7 +186,7 @@ class ClientManager:
             api_request = ApiRequest(
                 method="post",
                 path="/cmd/stamgr",
-                json={"mac": client_mac, "cmd": "unauthorize-guest"}
+                data={"mac": client_mac, "cmd": "unauthorize-guest"}
             )
             await self._connection.request(api_request)
             logger.info(f"Unauthorize command sent for guest {client_mac}")

@@ -90,7 +90,7 @@ class NetworkManager:
             api_request = ApiRequest(
                 method="post",
                 path="/rest/networkconf",
-                json=network_data
+                data=network_data
             )
             response = await self._connection.request(api_request)
             logger.info(f"Create command sent for network '{network_data.get('name')}'")
@@ -139,7 +139,7 @@ class NetworkManager:
             api_request = ApiRequest(
                 method="put",
                 path=f"/rest/networkconf/{network_id}",
-                json=merged_data # Send full object
+                data=merged_data # Send full object
             )
             await self._connection.request(api_request)
             logger.info(f"Update command sent for network {network_id} with merged data.")
@@ -210,24 +210,53 @@ class NetworkManager:
             if wlan_data.get("security") != "open" and "x_passphrase" not in wlan_data:
                  logger.error(f"Missing required field 'x_passphrase' for WLAN security type '{wlan_data.get("security")}'")
                  return None
+            
+            # Set default values based on UniFi API requirements
+            wlan_data.setdefault("usergroup_id", "")
+            wlan_data.setdefault("wlangroup_id", "")  
+            wlan_data.setdefault("hide_ssid", False)
+            wlan_data.setdefault("is_guest", False)
+            wlan_data.setdefault("wpa_mode", "wpa2")
+            wlan_data.setdefault("wpa_enc", "ccmp")
+            wlan_data.setdefault("uapsd_enabled", False)
+            wlan_data.setdefault("schedule_enabled", False)
+            wlan_data.setdefault("schedule", [])
+            # CRITICAL: UniFi requires ap_group_ids to be set!
+            wlan_data.setdefault("ap_group_ids", [])  # Empty list = all APs
 
+            # Note: Using /rest/wlanconf for creation (aiounifi doesn't support /add/wlanconf)
+            # The critical fix was adding ap_group_ids parameter
             api_request = ApiRequest(
                 method="post",
                 path="/rest/wlanconf",
-                json=wlan_data
+                data=wlan_data
             )
             response = await self._connection.request(api_request)
             logger.info(f"Create command sent for WLAN '{wlan_data.get('name')}'")
             self._connection._invalidate_cache(f"{CACHE_PREFIX_WLANS}_{self._connection.site}")
 
+            # Check if response is None or empty
+            if response is None:
+                logger.error("Response is None - API might have returned empty response")
+                return None
+            
+            logger.debug(f"WLAN creation response type: {type(response)}")
+            logger.debug(f"WLAN creation response: {response}")
+
             created_wlan_data = None
-            if isinstance(response, dict) and "data" in response and isinstance(response["data"], list) and len(response["data"]) > 0:
+            # The response from connection.request() already has 'data' extracted (line 171)
+            # So response IS the data, not wrapped in {"data": ...}
+            if isinstance(response, list) and len(response) > 0 and isinstance(response[0], dict):
+                created_wlan_data = response[0]
+            elif isinstance(response, dict) and response.get("_id"):
+                # Sometimes UniFi returns a single dict directly
+                created_wlan_data = response
+            elif isinstance(response, dict) and "data" in response and isinstance(response["data"], list) and len(response["data"]) > 0:
+                # Fallback for wrapped response
                 created_wlan_data = response["data"][0]
-            elif isinstance(response, list) and len(response) > 0 and isinstance(response[0], dict):
-                 created_wlan_data = response[0]
 
             if created_wlan_data and isinstance(created_wlan_data, dict):
-                # Return the dict directly
+                logger.info(f"Successfully extracted WLAN data with ID: {created_wlan_data.get('_id')}")
                 return created_wlan_data
             
             logger.warning(f"Could not extract created WLAN data from response: {response}")
@@ -235,7 +264,8 @@ class NetworkManager:
             return created_wlan_data if isinstance(created_wlan_data, dict) else None 
 
         except Exception as e:
-            logger.error(f"Error creating WLAN: {e}")
+            logger.error(f"Error creating WLAN: {e}", exc_info=True)
+            logger.error(f"WLAN data sent: {wlan_data}")
             return None # Return None on error
 
     async def update_wlan(self, wlan_id: str, update_data: Dict[str, Any]) -> bool:
@@ -275,7 +305,7 @@ class NetworkManager:
             api_request = ApiRequest(
                 method="put",
                 path=f"/rest/wlanconf/{wlan_id}",
-                json=merged_data # Send full object
+                data=merged_data # Send full object
             )
             await self._connection.request(api_request)
             logger.info(f"Update command sent for WLAN {wlan_id} with merged data.")
@@ -328,7 +358,7 @@ class NetworkManager:
             api_request = ApiRequest(
                 method="put",
                 path=f"/rest/wlanconf/{wlan_id}",
-                json=update_payload
+                data=update_payload
             )
             await self._connection.request(api_request)
             logger.info(f"Toggle command sent for WLAN {wlan_id} (new state: {'enabled' if new_state else 'disabled'})")

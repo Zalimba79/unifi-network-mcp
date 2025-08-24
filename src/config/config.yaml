@@ -38,21 +38,21 @@ permissions:
     update: true
 
   networks:
-    create: false  # Provisioning a new network can disrupt traffic
-    update: false  # Changing subnets, VLANs, DHCP ranges requires care
+    create: true  # Provisioning a new network can disrupt traffic
+    update: true  # Changing subnets, VLANs, DHCP ranges requires care
 
   wlans:
-    create: false
-    update: false
+    create: true
+    update: true
 
   devices:
-    create: false  # Adoption / provisioning – normally handled by controller, not tools
-    update: false  # Firmware upgrade, rename, etc.
+    create: true  # Adoption / provisioning – normally handled by controller, not tools
+    update: true  # Firmware upgrade, rename, etc.
 
   clients:
-    create: false  # Not applicable, but kept for symmetry
-    update: false  # Block/unblock, rename, reconnect
+    create: true  # Not applicable, but kept for symmetry
+    update: true  # Block/unblock, rename, reconnect
 
   vpn_servers:
-    create: false
+    create: true
     update: true

@@ -455,7 +455,7 @@ class FirewallManager:
             api_request = ApiRequest(
                 method="put",
                 path=f"/rest/portforward/{rule_id}", # V1 endpoint path, corrected
-                json=update_payload
+                data=update_payload
             )
             
             await self._connection.request(api_request)
@@ -522,7 +522,7 @@ class FirewallManager:
             api_request = ApiRequest(
                 method="post",
                 path="/rest/portforward", # V1 endpoint path, corrected
-                json=rule_data,
+                data=rule_data,
             )
             response = await self._connection.request(api_request)
 

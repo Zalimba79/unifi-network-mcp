@@ -53,7 +53,7 @@ class DeviceManager:
             api_request = ApiRequest(
                 method="post",
                 path=f"/cmd/devmgr",
-                json={"mac": device_mac, "cmd": "restart"}
+                data={"mac": device_mac, "cmd": "restart"}
             )
             await self._connection.request(api_request)
             logger.info(f"Reboot command sent for device {device_mac}")
@@ -75,7 +75,7 @@ class DeviceManager:
             api_request = ApiRequest(
                 method="put",
                 path=f"/rest/device/{device_id}",
-                json={"name": name}
+                data={"name": name}
             )
             await self._connection.request(api_request)
             logger.info(f"Rename command sent for device {device_mac} to '{name}'")
@@ -91,7 +91,7 @@ class DeviceManager:
             api_request = ApiRequest(
                 method="post",
                 path="/cmd/devmgr",
-                json={"mac": device_mac, "cmd": "adopt"}
+                data={"mac": device_mac, "cmd": "adopt"}
             )
             await self._connection.request(api_request)
             logger.info(f"Adopt command sent for device {device_mac}")
@@ -107,7 +107,7 @@ class DeviceManager:
             api_request = ApiRequest(
                 method="post",
                 path="/cmd/devmgr",
-                json={"mac": device_mac, "cmd": "upgrade"}
+                data={"mac": device_mac, "cmd": "upgrade"}
             )
             await self._connection.request(api_request)
             logger.info(f"Upgrade command sent for device {device_mac}")

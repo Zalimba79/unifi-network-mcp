@@ -1,5 +1,6 @@
 services:
   unifi-network-mcp:
+    container_name: unifi-network-mcp
     build: .
     ports:
       - "3000:3000"

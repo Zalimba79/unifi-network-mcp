@@ -66,7 +66,7 @@ class VpnManager:
             api_request = ApiRequest(
                 method="put",
                 path=f"/rest/vpnserver/{server_id}",
-                json=update_data
+                data=update_data
             )
             await self._connection.request(api_request)
             logger.info(f"Update state command sent for VPN server {server_id} (enabled={enabled})")
@@ -129,7 +129,7 @@ class VpnManager:
             api_request = ApiRequest(
                 method="put",
                 path=f"/rest/vpnclient/{client_id}",
-                json=update_data
+                data=update_data
             )
             
             try:
@@ -177,7 +177,7 @@ class VpnManager:
             api_request = ApiRequest(
                 method="post",
                 path="/rest/vpnprofile",
-                json=payload
+                data=payload
             )
             response = await self._connection.request(api_request)
             logger.info(f"Generate profile command sent for VPN client '{client_name}' on server {server_id}")

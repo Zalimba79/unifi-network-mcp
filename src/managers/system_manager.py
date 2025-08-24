@@ -66,7 +66,7 @@ class SystemManager:
             api_request = ApiRequest(
                 method="post",
                 path="/cmd/backup",
-                json={"cmd": "backup"}
+                data={"cmd": "backup"}
             )
             response = await self._connection.request(api_request, return_raw=True)
             logger.info("Backup creation requested successfully.")
@@ -129,7 +129,7 @@ class SystemManager:
             api_request = ApiRequest(
                 method="post",
                 path=f"/cmd/system",
-                json={"cmd": "upgrade"}
+                data={"cmd": "upgrade"}
             )
             response = await self._connection.request(api_request)
 
@@ -152,7 +152,7 @@ class SystemManager:
             api_request = ApiRequest(
                 method="post",
                 path="/cmd/system",
-                json={"cmd": "reboot"}
+                data={"cmd": "reboot"}
             )
             response = await self._connection.request(api_request)
 
@@ -223,7 +223,7 @@ class SystemManager:
             api_request = ApiRequest(
                 method="put",
                 path=endpoint,
-                json=settings_data
+                data=settings_data
             )
             response = await self._connection.request(api_request)
 
@@ -364,7 +364,7 @@ class SystemManager:
             api_request = ApiRequest(
                 method="post",
                 path="/cmd/sitemgr",
-                json=payload
+                data=payload
             )
             response = await self._connection.request(api_request)
 
@@ -414,7 +414,7 @@ class SystemManager:
             api_request = ApiRequest(
                 method="post",
                 path="/cmd/sitemgr",
-                json=payload
+                data=payload
             )
             response = await self._connection.request(api_request)
 
@@ -462,7 +462,7 @@ class SystemManager:
             api_request = ApiRequest(
                 method="post",
                 path="/cmd/sitemgr",
-                json=payload
+                data=payload
             )
             response = await self._connection.request(api_request)
 
@@ -583,7 +583,7 @@ class SystemManager:
             api_request = ApiRequest(
                 method="post",
                 path="/cmd/sitemgr",
-                json=payload
+                data=payload
             )
             response = await self._connection.request(api_request)
 
@@ -666,7 +666,7 @@ class SystemManager:
             api_request = ApiRequest(
                 method="post",
                 path="/cmd/sitemgr",
-                json=payload
+                data=payload
             )
             response = await self._connection.request(api_request)
 
@@ -747,7 +747,7 @@ class SystemManager:
             api_request = ApiRequest(
                 method="post",
                 path="/cmd/sitemgr",
-                json=payload
+                data=payload
             )
             response = await self._connection.request(api_request)
 
