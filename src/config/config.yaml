@@ -4,10 +4,10 @@ unifi:
   password: ${UNIFI_PASSWORD}
   port: ${oc.env:UNIFI_PORT,443}
   site: ${oc.env:UNIFI_SITE,default}
-  verify_ssl: ${oc.env:UNIFI_VERIFY_SSL,false}
+  verify_ssl: ${oc.env:UNIFI_VERIFY_SSL,true}
 
 server:
-  host: 0.0.0.0
+  host: 127.0.0.1
   port: 3000
   log_level: INFO
   
