@@ -1,6 +1,8 @@
 import logging
 from typing import Dict, List, Optional, Tuple, Any
 import json
+import re
+import ipaddress
 from jsonschema import validate, ValidationError
 
 logger = logging.getLogger("unifi-network-mcp")
@@ -58,4 +60,51 @@ def create_response(success: bool, data: Any = None, error: str = None) -> Dict[
     if not success and error:
         response["error"] = error
     
-    return response 
+    return response
+
+
+def validate_mac_address(mac: str) -> bool:
+    """
+    Validate MAC address format.
+    
+    Args:
+        mac: MAC address string
+        
+    Returns:
+        True if valid MAC address format
+    """
+    if not mac:
+        return False
+    
+    # Remove common separators and convert to lowercase
+    mac_clean = mac.lower().replace(':', '').replace('-', '').replace('.', '')
+    
+    # Check if it's 12 hex characters
+    if len(mac_clean) != 12:
+        return False
+    
+    try:
+        int(mac_clean, 16)
+        return True
+    except ValueError:
+        return False
+
+
+def validate_ip_address(ip: str) -> bool:
+    """
+    Validate IP address format (IPv4 or IPv6).
+    
+    Args:
+        ip: IP address string
+        
+    Returns:
+        True if valid IP address format
+    """
+    if not ip:
+        return False
+    
+    try:
+        ipaddress.ip_address(ip)
+        return True
+    except ValueError:
+        return False 

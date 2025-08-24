@@ -27,6 +27,7 @@ def test_managers_import():
     from src.managers.vpn_manager import VPNManager
     from src.managers.qos_manager import QoSManager
     from src.managers.stats_manager import StatsManager
+    from src.managers.dhcp_manager import DHCPManager
     
     # Just check they're importable
     assert ConnectionManager is not None
@@ -38,6 +39,7 @@ def test_managers_import():
     assert VPNManager is not None
     assert QoSManager is not None
     assert StatsManager is not None
+    assert DHCPManager is not None
 
 
 def test_tools_import():
@@ -53,6 +55,7 @@ def test_tools_import():
     import src.tools.traffic_routes
     import src.tools.vpn
     import src.tools.switch_ports
+    import src.tools.dhcp
     
     # Just check they're importable
     assert src.tools.clients is not None
@@ -66,6 +69,7 @@ def test_tools_import():
     assert src.tools.traffic_routes is not None
     assert src.tools.vpn is not None
     assert src.tools.switch_ports is not None
+    assert src.tools.dhcp is not None
 
 
 def test_config_structure():
