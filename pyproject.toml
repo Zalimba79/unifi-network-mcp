@@ -6,7 +6,8 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
-    {name = "Enrico Maihack", email = "enrico@mindbit.net"},
+    {name = "Chris Kirby", email = ""},  # Original author
+    {name = "Zalimba79", email = ""},  # Your fork
 ]
 keywords = ["unifi", "mcp", "network", "automation", "claude", "ai"]
 classifiers = [
