@@ -131,6 +131,8 @@ class DeviceManager:
     async def update_device_port_overrides(self, device_mac: str, port_overrides: List[Dict[str, Any]]) -> bool:
         """Update port override configurations for a device.
         
+        SECURITY: Port 9 (WAN port) is protected on gateway devices.
+        
         Args:
             device_mac: MAC address of the device (switch)
             port_overrides: List of port override configurations
@@ -145,6 +147,31 @@ class DeviceManager:
                 return False
             
             device_id = device.raw["_id"]
+            
+            # SECURITY CHECK: Protect WAN port on gateway devices
+            if hasattr(device, 'type') and device.type in ['ugw', 'udm', 'udmp', 'uxg']:
+                # This is a gateway device - protect WAN port
+                for override in port_overrides:
+                    port_idx = override.get('port_idx')
+                    
+                    # Port 9 is typically the WAN port on UniFi gateways
+                    # We could also check port_table for more accuracy
+                    if port_idx == 9:
+                        # Check if we're trying to disable or modify WAN port
+                        if override.get('forward') == 'disabled' or 'portconf_id' in override:
+                            logger.error(f"BLOCKED: Cannot modify port 9 (WAN port) on gateway device {device_mac}")
+                            logger.error("Disabling or changing the WAN port would break internet connectivity!")
+                            return False
+                        else:
+                            logger.warning(f"WARNING: Modifying port 9 (WAN) settings on gateway - be careful!")
+                    
+                    # Also detect WAN ports by checking port_table if available
+                    if hasattr(device, 'port_table') and device.port_table:
+                        port_info = device.port_table[port_idx] if port_idx < len(device.port_table) else None
+                        if port_info and port_info.get('name', '').lower() == 'wan':
+                            if override.get('forward') == 'disabled':
+                                logger.error(f"BLOCKED: Cannot disable WAN port (port {port_idx}) on gateway!")
+                                return False
             
             # Prepare the update payload
             update_payload = {

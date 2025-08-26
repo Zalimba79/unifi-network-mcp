@@ -58,11 +58,7 @@ permissions:
     create: true
     update: true
 
-  # CRITICAL SECURITY SETTINGS - HANDLE WITH CARE!
-  wan_protection:
-    enabled: true  # Set to false to disable ALL WAN protections (DANGEROUS!)
-    allow_wan_deletion: false  # Set to true to allow WAN network deletion (CAN BREAK INTERNET!)
-    allow_wan_modification: false  # Set to true to allow WAN network changes
-    allow_wan_type_change: false  # Set to true to allow changing WAN type (DHCP/Static/PPPoE)
-    require_confirmation: true  # Require explicit confirmation for WAN changes
-    log_all_attempts: true  # Log all attempts to modify WAN settings
+  # WAN Port Protection - Only protects physical WAN port (Port 9)
+  wan_port_protection:
+    protect_port_9: true  # Protect port 9 (typical WAN port) from being disabled
+    warn_on_wan_changes: true  # Show warnings when modifying WAN-related settings
