@@ -15,15 +15,10 @@ from src.validator_registry import UniFiValidatorRegistry # Added
 logger = logging.getLogger(__name__)
 
 # FIREWALL CREATION FLAG
-# Set to False because UniFi V2 API firewall creation is broken
-# When UniFi fixes their API, set this to True to re-enable the tools
-FIREWALL_CREATE_ENABLED = False
-
-if not FIREWALL_CREATE_ENABLED:
-    logger.warning(
-        "⚠️ Firewall creation tools are DISABLED due to UniFi V2 API bugs. "
-        "Use alternatives: Network Isolation, Traffic Routes, or UniFi Web UI."
-    ) 
+# Set to False because UniFi V2 API firewall CREATION is broken
+# List, toggle, and update still work fine!
+# When UniFi fixes their API, set this to True to re-enable creation tools
+FIREWALL_CREATE_ENABLED = False 
 
 @server.tool(
     name="unifi_list_firewall_policies",
@@ -239,28 +234,11 @@ async def toggle_firewall_policy(
         logger.error(f"Error toggling firewall policy {policy_id}: {e}", exc_info=True)
         return {"success": False, "error": str(e)}
 
-# Only register this tool if firewall creation is enabled
-if FIREWALL_CREATE_ENABLED:
-    @server.tool(
-        name="unifi_create_firewall_policy",
-        description="Create a new firewall policy with schema validation."
-    )
-    async def create_firewall_policy(
-        policy_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """
-        Creates a new firewall policy based on the provided configuration data.
-        This tool performs validation on the input data against the expected UniFi API schema.
-        """
-        # Original implementation here (currently broken)
-        pass  # Implementation would go here when API is fixed
-else:
-    # Function exists but is not registered as a tool
-    async def create_firewall_policy(
-        policy_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
-    """
-    ⚠️ WARNING: THIS FUNCTION DOES NOT WORK DUE TO UniFi API LIMITATIONS!
+# Firewall creation is BROKEN - not registered as tool
+async def create_firewall_policy(
+    policy_data: Dict[str, Any]
+) -> Dict[str, Any]:
+    """⚠️ WARNING: THIS FUNCTION DOES NOT WORK DUE TO UniFi API LIMITATIONS!
     
     The UniFi Controller V2 Firewall API has bugs that prevent reliable rule creation.
     This is NOT a bug in our code but a limitation of the UniFi API itself.
@@ -347,70 +325,6 @@ else:
         },
         "technical_details": "UniFi V2 API at /v2/api/site/default/firewall-policies has incomplete implementation"
     }
-    
-    # Code below won't execute
-    if not parse_permission(config.permissions, "firewall", "create"):
-        logger.warning("Permission denied for creating firewall policy.")
-        return {"success": False, "error": "Permission denied to create firewall policy."}
-
-    if not isinstance(policy_data, dict) or not policy_data:
-        return {"success": False, "error": "policy_data must be a non-empty dictionary."}
-
-    # --- Use Validator Registry for Comprehensive Validation ---
-    # This replaces the basic required field checks below
-    from src.validator_registry import UniFiValidatorRegistry
-    is_valid, error_msg, validated_data = UniFiValidatorRegistry.validate("firewall_policy_create", policy_data)
-
-    if not is_valid:
-        logger.warning(f"Invalid firewall policy data: {error_msg}")
-        # Provide the specific validation error back to the caller
-        return {"success": False, "error": f"Validation Error: {error_msg}"}
-    # --- End Validation ---
-
-    # Enforce lowercase action (Validator might also handle this depending on schema definition)
-    action = validated_data.get("action", "")
-    if not isinstance(action, str) or action.lower() not in ["accept", "drop", "reject"]:
-        # This check might be redundant if the validator enforces enum values
-        error = f"Invalid 'action' after validation: '{action}'. Must be one of 'accept', 'drop', 'reject' (lowercase)."
-        logger.warning(error)
-        return {"success": False, "error": error}
-    validated_data["action"] = action.lower() # Normalize in the validated data
-
-    # Use the validated and potentially cleaned/defaulted data
-    policy_data_to_send = validated_data
-
-    policy_name = policy_data_to_send.get('name', 'Unnamed Policy')
-    ruleset = policy_data_to_send.get('ruleset', 'Unknown Ruleset')
-    logger.info(f"Attempting to create firewall policy '{policy_name}' in ruleset '{ruleset}'")
-
-    try:
-        # Call the new manager method
-        created_policy_obj = await firewall_manager.create_firewall_policy(policy_data_to_send)
-
-        if created_policy_obj and hasattr(created_policy_obj, 'raw'):
-            created_policy_details = created_policy_obj.raw
-            new_policy_id = created_policy_details.get("_id", "unknown")
-            logger.info(f"Successfully created firewall policy '{policy_name}' with ID {new_policy_id}")
-            return {
-                "success": True,
-                "message": f"Firewall policy '{policy_name}' created successfully.",
-                "policy_id": new_policy_id,
-                "details": json.loads(json.dumps(created_policy_details, default=str)) # Ensure serialization
-            }
-        else:
-            # The manager method should log specific errors, return a generic failure here.
-            logger.error(f"Failed to create firewall policy '{policy_name}'. Manager returned None or invalid object.")
-            # Try to get a more specific error from the manager logs if possible.
-            # You might enhance the manager to return error details instead of just None.
-            return {
-                "success": False,
-                "error": f"Failed to create firewall policy '{policy_name}'. Check manager logs for details (e.g., API errors, invalid data)."
-            }
-
-    except Exception as e:
-        # Catch unexpected errors during the tool's execution
-        logger.error(f"Unexpected error creating firewall policy '{policy_name}': {e}", exc_info=True)
-        return {"success": False, "error": f"An unexpected error occurred: {str(e)}"}
 
 @server.tool(
     name="unifi_update_firewall_policy",
@@ -526,25 +440,8 @@ async def update_firewall_policy(
         logger.error(f"Error updating firewall policy {policy_id}: {e}", exc_info=True)
         return {"success": False, "error": str(e)}
 
-# Only register simple firewall tool if creation is enabled
-if FIREWALL_CREATE_ENABLED:
-    @server.tool(
-        name="unifi_create_simple_firewall_policy",
-        description=(
-            "Create a firewall policy using a simplified high-level schema. "
-            "Accepts friendly src/dst selectors and returns a preview unless confirm=true."
-        )
-    )
-    async def create_simple_firewall_policy(
-        policy: Dict[str, Any],
-        confirm: bool = False
-    ) -> Dict[str, Any]:
-        """Create a firewall rule with a compact schema and optional preview."""
-        # Original implementation here (currently broken)
-        pass  # Implementation would go here when API is fixed
-else:
-    # Function exists but not registered as tool
-    async def create_simple_firewall_policy(
+# Simplified firewall creation is also BROKEN - not registered as tool
+async def create_simple_firewall_policy(
     policy: Dict[str, Any],
     confirm: bool = False
 ) -> Dict[str, Any]:
@@ -592,101 +489,6 @@ else:
             "4. Create firewall rules manually in UniFi Web UI"
         ],
         "reason": "UniFi Controller V2 API does not properly accept firewall creation requests. This is a known limitation."
-    }
-    
-    # Original code below will never execute
-    if not parse_permission(config.permissions, "firewall", "create"):
-        return {"success": False, "error": "Permission denied."}
-
-    # --- Step 1: validate high-level schema --------------------------------
-    is_valid, error, validated = UniFiValidatorRegistry.validate("firewall_policy_simple", policy)
-    if not is_valid or validated is None:
-        return {"success": False, "error": error or "Validation failed"}
-
-    pol = validated  # rename for brevity
-
-    # --- Step 2: translate src/dst selectors into UniFi endpoint structure --
-    async def _resolve_endpoint(ep: Dict[str, str]) -> Dict[str, Any]:
-        etype = ep["type"].lower()
-        value = ep["value"].strip()
-        base = {
-            "match_opposite_ports": False,
-            "port_matching_type": "any",
-        }
-        if etype == "zone":
-            return {**base, "matching_target": "zone", "zone_id": value.lower()}
-        if etype == "network":
-            # Accept network name or id
-            networks = await network_manager.get_networks()
-            net = next((n for n in networks if n.get("_id") == value or n.get("name") == value), None)
-            if not net:
-                raise ValueError(f"Network '{value}' not found")
-            return {
-                **base,
-                "matching_target": "network_id",
-                "network_id": net["_id"],
-                "zone_id": "lan"  # network selectors still need zone for API; default lan
-            }
-        if etype == "client_mac":
-            return {**base, "matching_target": "client_macs", "client_macs": [value.lower()], "zone_id": "lan"}
-        if etype == "ip_group":
-            return {**base, "matching_target": "ip_group_id", "ip_group_id": value, "zone_id": "lan"}
-        raise ValueError(f"Unsupported selector type '{etype}'")
-
-    try:
-        src_ep = await _resolve_endpoint(pol["src"])
-        dst_ep = await _resolve_endpoint(pol["dst"])
-    except Exception as exc:
-        return {"success": False, "error": str(exc)}
-
-    # --- Step 3: build controller payload ----------------------------------
-    # Map action to V2 API format (UPPERCASE)
-    action_map = {
-        "drop": "BLOCK",
-        "block": "BLOCK",
-        "accept": "ALLOW",
-        "allow": "ALLOW",
-        "reject": "REJECT"
-    }
-    action = action_map.get(pol["action"].lower(), pol["action"].upper())
-    
-    payload: Dict[str, Any] = {
-        "name": pol["name"],
-        "ruleset": pol["ruleset"],
-        "action": action,
-        "index": pol.get("index", 3000),  # fall-back index
-        "enabled": pol.get("enabled", True),
-        "logging": pol.get("log", False),
-        "protocol": pol.get("protocol", "all"),
-        # sane defaults for connection states (inclusive all)
-        "connection_state_type": "inclusive",
-        "connection_states": ["new", "established", "related", "invalid"],
-        "source": src_ep,
-        "destination": dst_ep,
-        # Add required fields for V2 API
-        "ipVersion": "ipv4",
-        "schedule": {
-            "enabled": False,
-            "repeat_on_days": []
-        }
-    }
-
-    if not confirm:
-        return {
-            "success": True,
-            "preview": payload,
-            "message": "Set confirm=true to apply."
-        }
-
-    # --- Step 4: call manager to create policy -----------------------------
-    created = await firewall_manager.create_firewall_policy(payload)
-    if created is None:
-        return {"success": False, "error": "Controller rejected policy creation. See logs."}
-
-    return {
-        "success": True,
-        "policy_id": created.id,
-        "details": created.raw,
     }
 
 @server.tool(
