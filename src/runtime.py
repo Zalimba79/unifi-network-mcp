@@ -29,6 +29,7 @@ from src.managers.network_manager import NetworkManager
 from src.managers.system_manager import SystemManager
 from src.managers.firewall_manager import FirewallManager
 from src.managers.dhcp_manager import DHCPManager
+from src.managers.wan_manager import WANManager
 
 # ---------------------------------------------------------------------------
 # Core singletons
@@ -115,6 +116,11 @@ def get_dhcp_manager() -> DHCPManager:
     return DHCPManager(get_connection_manager())
 
 
+@lru_cache
+def get_wan_manager() -> WANManager:
+    return WANManager(get_connection_manager())
+
+
 # ---------------------------------------------------------------------------
 # Shorthand aliases (import‑time singletons) --------------------------------
 # ---------------------------------------------------------------------------
@@ -134,5 +140,6 @@ network_manager = get_network_manager()
 system_manager = get_system_manager()
 firewall_manager = get_firewall_manager()
 dhcp_manager = get_dhcp_manager()
+wan_manager = get_wan_manager()
 
 logger.debug("runtime.py: shared singletons initialised") 

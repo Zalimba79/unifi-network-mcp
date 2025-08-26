@@ -40,6 +40,7 @@ permissions:
   networks:
     create: true  # Provisioning a new network can disrupt traffic
     update: true  # Changing subnets, VLANs, DHCP ranges requires care
+    delete: true  # Allow network deletion by default
 
   wlans:
     create: true
@@ -56,3 +57,12 @@ permissions:
   vpn_servers:
     create: true
     update: true
+
+  # CRITICAL SECURITY SETTINGS - HANDLE WITH CARE!
+  wan_protection:
+    enabled: true  # Set to false to disable ALL WAN protections (DANGEROUS!)
+    allow_wan_deletion: false  # Set to true to allow WAN network deletion (CAN BREAK INTERNET!)
+    allow_wan_modification: false  # Set to true to allow WAN network changes
+    allow_wan_type_change: false  # Set to true to allow changing WAN type (DHCP/Static/PPPoE)
+    require_confirmation: true  # Require explicit confirmation for WAN changes
+    log_all_attempts: true  # Log all attempts to modify WAN settings

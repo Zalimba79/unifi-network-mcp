@@ -129,6 +129,28 @@ class NetworkManager:
             if not existing_network:
                 logger.error(f"Network {network_id} not found for update.")
                 return False
+            
+            # SECURITY CHECK: Protect WAN networks from dangerous changes
+            if existing_network.get('purpose') == 'wan':
+                # Check if WAN protection is enabled in config
+                from src.runtime import config
+                wan_protection = config.permissions.get('wan_protection', {})
+                
+                if wan_protection.get('enabled', True):  # Protection enabled by default
+                    # Block changing purpose away from WAN
+                    if 'purpose' in update_data and update_data['purpose'] != 'wan':
+                        if wan_protection.get('log_all_attempts', True):
+                            logger.error(f"BLOCKED: Attempted to change WAN network purpose to {update_data['purpose']} - This could break internet!")
+                        return False
+                    
+                    # Check if WAN modifications are allowed
+                    if not wan_protection.get('allow_wan_modification', False):
+                        if wan_protection.get('log_all_attempts', True):
+                            logger.error(f"BLOCKED: WAN network modifications are disabled in config. Set permissions.wan_protection.allow_wan_modification=true to enable.")
+                        return False
+                
+                # Always warn about WAN changes
+                logger.warning(f"WARNING: Modifying WAN network {network_id} - Internet connectivity may be affected!")
                 
             # 2. Merge updates into existing data
             merged_data = existing_network.copy()
@@ -151,6 +173,9 @@ class NetworkManager:
 
     async def delete_network(self, network_id: str) -> bool:
         """Delete a network.
+        
+        SECURITY: This method now blocks deletion of WAN networks to prevent 
+        accidental loss of internet connectivity!
 
         Args:
             network_id: ID of the network to delete
@@ -159,6 +184,41 @@ class NetworkManager:
             bool: True if successful, False otherwise
         """
         try:
+            # CRITICAL SECURITY CHECK: Prevent WAN network deletion
+            # Check if WAN protection is enabled in config
+            from src.runtime import config
+            wan_protection = config.permissions.get('wan_protection', {})
+            
+            if wan_protection.get('enabled', True):  # Protection enabled by default
+                networks = await self.get_networks()
+                for network in networks:
+                    if network.id == network_id and network.purpose == 'wan':
+                        if not wan_protection.get('allow_wan_deletion', False):
+                            if wan_protection.get('log_all_attempts', True):
+                                logger.error(f"BLOCKED: Attempted to delete WAN network {network_id} - This would break internet connectivity!")
+                                logger.error(f"To allow WAN deletion, set permissions.wan_protection.allow_wan_deletion=true in config (DANGEROUS!)")
+                            return False
+                        else:
+                            # WAN deletion is allowed but log a critical warning
+                            logger.critical(f"ALLOWING WAN NETWORK DELETION - Internet connectivity will be lost!")
+                            logger.critical(f"Network {network_id} with purpose 'wan' is being deleted as per config override!")
+            
+                # Additional check: Get network details to verify
+                api_request = ApiRequest(
+                    method="get",
+                    path=f"/rest/networkconf/{network_id}"
+                )
+                network_details = await self._connection.request(api_request)
+                
+                if network_details and network_details.get('purpose') == 'wan':
+                    if not wan_protection.get('allow_wan_deletion', False):
+                        if wan_protection.get('log_all_attempts', True):
+                            logger.error(f"BLOCKED: Attempted to delete WAN network {network_id} - This would break internet connectivity!")
+                        return False
+                    else:
+                        logger.critical(f"WAN NETWORK DELETION PROCEEDING - Config override active!")
+            
+            # Only proceed if not a WAN network
             api_request = ApiRequest(
                 method="delete",
                 path=f"/rest/networkconf/{network_id}"
