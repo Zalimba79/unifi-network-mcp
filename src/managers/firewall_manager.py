@@ -134,9 +134,10 @@ class FirewallManager:
             for key, value in updates.items():
                 policy_data[key] = value
 
-            update_payload = [policy_data]
+            # Wrap in 'policies' key for batch update
+            update_payload = {"policies": [policy_data]}
 
-            logger.info(f"Updating firewall policy {policy_id} with full data payload: {update_payload}")
+            logger.info(f"Updating firewall policy {policy_id} with full data payload")
 
             api_request = ApiRequestV2(
                 method="put",
@@ -589,10 +590,13 @@ class FirewallManager:
             # Log the payload for debugging, ensuring sensitive data isn't exposed if necessary
             # logger.debug(f"Firewall policy create payload: {json.dumps(policy_data, indent=2)}")
 
+            # Wrap policy data in 'policy' key as expected by the API
+            wrapped_data = {"policy": policy_data}
+            
             api_request = ApiRequestV2(
                 method="post",
                 path="/firewall-policies",
-                data=policy_data
+                data=wrapped_data
             )
 
             response = await self._connection.request(api_request)
