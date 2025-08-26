@@ -8,7 +8,7 @@ from src.validators import validate_mac_address, validate_ip_address
 logger = logging.getLogger(__name__)
 
 
-@server.tool
+@server.tool()
 async def unifi_list_dhcp_reservations() -> Dict[str, Any]:
     """
     List all DHCP reservations (fixed IP assignments) in the UniFi network.
@@ -45,7 +45,7 @@ async def unifi_list_dhcp_reservations() -> Dict[str, Any]:
         return {"success": False, "error": str(e)}
 
 
-@server.tool
+@server.tool()
 async def unifi_set_client_fixed_ip(
     mac_address: str,
     fixed_ip: str,
@@ -100,7 +100,7 @@ async def unifi_set_client_fixed_ip(
         return {"success": False, "error": str(e)}
 
 
-@server.tool
+@server.tool()
 async def unifi_remove_client_fixed_ip(mac_address: str) -> Dict[str, Any]:
     """
     Remove fixed IP reservation for a client (enable DHCP).
@@ -138,7 +138,7 @@ async def unifi_remove_client_fixed_ip(mac_address: str) -> Dict[str, Any]:
         return {"success": False, "error": str(e)}
 
 
-@server.tool
+@server.tool()
 async def unifi_get_client_fixed_ip(mac_address: str) -> Dict[str, Any]:
     """
     Get fixed IP configuration for a specific client.
@@ -181,7 +181,7 @@ async def unifi_get_client_fixed_ip(mac_address: str) -> Dict[str, Any]:
         return {"success": False, "error": str(e)}
 
 
-@server.tool
+@server.tool()
 async def unifi_create_dhcp_reservation(
     mac_address: str,
     fixed_ip: str,
@@ -243,7 +243,7 @@ async def unifi_create_dhcp_reservation(
         return {"success": False, "error": str(e)}
 
 
-@server.tool
+@server.tool()
 async def unifi_list_available_ips(network_id: str) -> Dict[str, Any]:
     """
     List available IP addresses in a network that are not reserved or in use.
