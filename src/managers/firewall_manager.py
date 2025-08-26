@@ -587,16 +587,36 @@ class FirewallManager:
         try:
             policy_name = policy_data.get('name', 'Unnamed Policy')
             logger.info(f"Attempting to create firewall policy '{policy_name}' via V2 endpoint.")
-            # Log the payload for debugging, ensuring sensitive data isn't exposed if necessary
-            # logger.debug(f"Firewall policy create payload: {json.dumps(policy_data, indent=2)}")
-
-            # Wrap policy data in 'policy' key as expected by the API
-            wrapped_data = {"policy": policy_data}
             
+            # Add required fields that might be missing
+            if 'ipVersion' not in policy_data:
+                policy_data['ipVersion'] = 'ipv4'  # Default to IPv4
+            
+            if 'schedule' not in policy_data:
+                policy_data['schedule'] = {
+                    'enabled': False,
+                    'repeat_on_days': []
+                }
+            
+            # Convert action to V2 API format (UPPERCASE)
+            if 'action' in policy_data:
+                action_map = {
+                    "drop": "BLOCK",
+                    "block": "BLOCK", 
+                    "accept": "ALLOW",
+                    "allow": "ALLOW",
+                    "reject": "REJECT"
+                }
+                policy_data['action'] = action_map.get(policy_data['action'].lower(), policy_data['action'].upper())
+            
+            # Log the payload for debugging
+            logger.debug(f"Firewall policy create payload: {json.dumps(policy_data, indent=2)}")
+            
+            # Don't wrap in 'policy' - send data directly
             api_request = ApiRequestV2(
                 method="post",
                 path="/firewall-policies",
-                data=wrapped_data
+                data=policy_data  # Send directly without wrapper
             )
 
             response = await self._connection.request(api_request)

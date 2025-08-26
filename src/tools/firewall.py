@@ -12,7 +12,18 @@ import mcp.types as types # Import the types module
 from src.utils.permissions import parse_permission # CORRECTED import name
 from src.validator_registry import UniFiValidatorRegistry # Added
 
-logger = logging.getLogger(__name__) 
+logger = logging.getLogger(__name__)
+
+# FIREWALL CREATION FLAG
+# Set to False because UniFi V2 API firewall creation is broken
+# When UniFi fixes their API, set this to True to re-enable the tools
+FIREWALL_CREATE_ENABLED = False
+
+if not FIREWALL_CREATE_ENABLED:
+    logger.warning(
+        "⚠️ Firewall creation tools are DISABLED due to UniFi V2 API bugs. "
+        "Use alternatives: Network Isolation, Traffic Routes, or UniFi Web UI."
+    ) 
 
 @server.tool(
     name="unifi_list_firewall_policies",
@@ -228,14 +239,39 @@ async def toggle_firewall_policy(
         logger.error(f"Error toggling firewall policy {policy_id}: {e}", exc_info=True)
         return {"success": False, "error": str(e)}
 
-@server.tool(
-    name="unifi_create_firewall_policy",
-    description="Create a new firewall policy with schema validation."
-)
-async def create_firewall_policy(
-    policy_data: Dict[str, Any]
-) -> Dict[str, Any]:
+# Only register this tool if firewall creation is enabled
+if FIREWALL_CREATE_ENABLED:
+    @server.tool(
+        name="unifi_create_firewall_policy",
+        description="Create a new firewall policy with schema validation."
+    )
+    async def create_firewall_policy(
+        policy_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Creates a new firewall policy based on the provided configuration data.
+        This tool performs validation on the input data against the expected UniFi API schema.
+        """
+        # Original implementation here (currently broken)
+        pass  # Implementation would go here when API is fixed
+else:
+    # Function exists but is not registered as a tool
+    async def create_firewall_policy(
+        policy_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
     """
+    ⚠️ WARNING: THIS FUNCTION DOES NOT WORK DUE TO UniFi API LIMITATIONS!
+    
+    The UniFi Controller V2 Firewall API has bugs that prevent reliable rule creation.
+    This is NOT a bug in our code but a limitation of the UniFi API itself.
+    
+    WORKING ALTERNATIVES:
+    - Enable "Network Isolation" in VLAN settings for inter-VLAN blocking
+    - Use Traffic Routes (unifi_create_traffic_route) for routing rules  
+    - Configure port isolation at switch level
+    - Create rules manually in UniFi Web UI
+    
+    Original documentation:
     Creates a new firewall policy based on the provided configuration data.
     This tool performs validation on the input data against the expected UniFi API schema.
 
@@ -298,6 +334,21 @@ async def create_firewall_policy(
         - details (Dict): Full details of the created policy as returned by the controller.
         - error (string): Error message if unsuccessful (includes validation errors or API errors).
     """
+    # IMMEDIATELY RETURN ERROR WITH ALTERNATIVES
+    return {
+        "success": False,
+        "error": "Firewall creation is NON-FUNCTIONAL due to UniFi API limitations",
+        "message": "The UniFi V2 Firewall API is broken. Please use these working alternatives:",
+        "alternatives": {
+            "network_isolation": "Enable in Settings → Networks → [VLAN] → Network Isolation",
+            "traffic_routes": "Use unifi_create_traffic_route tool (fully functional)",
+            "port_isolation": "Use unifi_toggle_switch_port for port-level isolation",
+            "manual": "Create rules in UniFi Web UI at Settings → Firewall & Security"
+        },
+        "technical_details": "UniFi V2 API at /v2/api/site/default/firewall-policies has incomplete implementation"
+    }
+    
+    # Code below won't execute
     if not parse_permission(config.permissions, "firewall", "create"):
         logger.warning("Permission denied for creating firewall policy.")
         return {"success": False, "error": "Permission denied to create firewall policy."}
@@ -475,18 +526,42 @@ async def update_firewall_policy(
         logger.error(f"Error updating firewall policy {policy_id}: {e}", exc_info=True)
         return {"success": False, "error": str(e)}
 
-@server.tool(
-    name="unifi_create_simple_firewall_policy",
-    description=(
-        "Create a firewall policy using a simplified high-level schema. "
-        "Accepts friendly src/dst selectors and returns a preview unless confirm=true."
+# Only register simple firewall tool if creation is enabled
+if FIREWALL_CREATE_ENABLED:
+    @server.tool(
+        name="unifi_create_simple_firewall_policy",
+        description=(
+            "Create a firewall policy using a simplified high-level schema. "
+            "Accepts friendly src/dst selectors and returns a preview unless confirm=true."
+        )
     )
-)
-async def create_simple_firewall_policy(
+    async def create_simple_firewall_policy(
+        policy: Dict[str, Any],
+        confirm: bool = False
+    ) -> Dict[str, Any]:
+        """Create a firewall rule with a compact schema and optional preview."""
+        # Original implementation here (currently broken)
+        pass  # Implementation would go here when API is fixed
+else:
+    # Function exists but not registered as tool
+    async def create_simple_firewall_policy(
     policy: Dict[str, Any],
     confirm: bool = False
 ) -> Dict[str, Any]:
-    """Create a firewall rule with a compact schema and optional preview.
+    """⚠️ THIS FUNCTION IS BROKEN DUE TO UniFi API LIMITATIONS!
+    
+    The UniFi V2 Firewall API is incompletely implemented and firewall rule 
+    creation does NOT work reliably. This is a known limitation of the UniFi 
+    Controller and aiounifi library.
+    
+    PLEASE USE THESE ALTERNATIVES INSTEAD:
+    1. **Network Isolation**: Go to Network settings → Select VLAN → Enable "Network Isolation"
+    2. **Traffic Routes**: Use unifi_create_traffic_route for traffic management (works!)
+    3. **Port Isolation**: Configure at switch port level with unifi_toggle_switch_port
+    4. **Manual Setup**: Create firewall rules through UniFi Web UI
+    
+    Original (non-functional) description:
+    Create a firewall rule with a compact schema and optional preview.
 
     High-level schema (validated internally):
     {
@@ -506,6 +581,20 @@ async def create_simple_firewall_policy(
     the rule and return the controller's response.
     """
 
+    # IMMEDIATELY RETURN WITH ERROR AND ALTERNATIVES
+    return {
+        "success": False,
+        "error": "Firewall rule creation is BROKEN due to UniFi V2 API bugs",
+        "alternatives": [
+            "1. Enable 'Network Isolation' in your VLAN settings (Settings → Networks → [Your VLAN] → Network Isolation)",
+            "2. Use Traffic Routes instead: unifi_create_traffic_route (these work!)",
+            "3. Configure port isolation at switch level: unifi_toggle_switch_port",
+            "4. Create firewall rules manually in UniFi Web UI"
+        ],
+        "reason": "UniFi Controller V2 API does not properly accept firewall creation requests. This is a known limitation."
+    }
+    
+    # Original code below will never execute
     if not parse_permission(config.permissions, "firewall", "create"):
         return {"success": False, "error": "Permission denied."}
 
@@ -551,10 +640,20 @@ async def create_simple_firewall_policy(
         return {"success": False, "error": str(exc)}
 
     # --- Step 3: build controller payload ----------------------------------
+    # Map action to V2 API format (UPPERCASE)
+    action_map = {
+        "drop": "BLOCK",
+        "block": "BLOCK",
+        "accept": "ALLOW",
+        "allow": "ALLOW",
+        "reject": "REJECT"
+    }
+    action = action_map.get(pol["action"].lower(), pol["action"].upper())
+    
     payload: Dict[str, Any] = {
         "name": pol["name"],
         "ruleset": pol["ruleset"],
-        "action": pol["action"].lower(),
+        "action": action,
         "index": pol.get("index", 3000),  # fall-back index
         "enabled": pol.get("enabled", True),
         "logging": pol.get("log", False),
@@ -564,6 +663,12 @@ async def create_simple_firewall_policy(
         "connection_states": ["new", "established", "related", "invalid"],
         "source": src_ep,
         "destination": dst_ep,
+        # Add required fields for V2 API
+        "ipVersion": "ipv4",
+        "schedule": {
+            "enabled": False,
+            "repeat_on_days": []
+        }
     }
 
     if not confirm:

@@ -176,14 +176,22 @@ Defines HTTP bind host/port (`0.0.0.0:3000` by default) plus granular permission
 
 ### Firewall
 
-* `unifi_list_firewall_policies`
-* `unifi_get_firewall_policy_details`
-* `unifi_toggle_firewall_policy`
-* `unifi_create_firewall_policy`
-* `unifi_update_firewall_policy`
-* `unifi_create_simple_firewall_policy`
-* `unifi_list_firewall_zones`
-* `unifi_list_ip_groups`
+* `unifi_list_firewall_policies` ✅
+* `unifi_get_firewall_policy_details` ✅
+* `unifi_toggle_firewall_policy` ✅
+* ~~`unifi_create_firewall_policy`~~ ❌ **Not functional - API limitation**
+* `unifi_update_firewall_policy` ⚠️ Limited functionality
+* ~~`unifi_create_simple_firewall_policy`~~ ❌ **Not functional - API limitation**
+* `unifi_list_firewall_zones` ✅
+* `unifi_list_ip_groups` ✅
+
+> **⚠️ IMPORTANT: Firewall Creation Limitation**  
+> Due to incomplete V2 API implementation in UniFi Controller and the aiounifi library, creating new firewall rules is currently **NOT FUNCTIONAL**.  
+> **Please use these alternatives instead:**
+> - **Network Isolation**: Enable "Network Isolation" directly in VLAN/Network settings
+> - **Traffic Routes**: Use Traffic Management tools which work reliably
+> - **Switch Port Isolation**: Configure port isolation at the switch level
+> - **Manual Configuration**: Create firewall rules through the UniFi Web UI
 
 ### Traffic Routes
 

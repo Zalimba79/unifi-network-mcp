@@ -1,0 +1,129 @@
+#!/usr/bin/env python3
+"""Test script to debug firewall policy creation."""
+
+import asyncio
+import logging
+import json
+from src.runtime import connection_manager
+from src.managers.firewall_manager import FirewallManager
+from src.managers.network_manager import NetworkManager
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+
+async def test_firewall_creation():
+    """Test firewall rule creation step by step."""
+    try:
+        # Ensure connection
+        await connection_manager.ensure_connected()
+        
+        print("\n=== TESTING FIREWALL RULE CREATION ===\n")
+        
+        # Create managers
+        firewall_manager = FirewallManager(connection_manager)
+        network_manager = NetworkManager(connection_manager)
+        
+        # Step 1: Get network IDs
+        print("1. Getting network list...")
+        networks = await network_manager.get_networks()
+        
+        kids_vlan = None
+        for net in networks:
+            print(f"  - {net.get('name')}: {net.get('_id')}")
+            if net.get('name') == 'Kids VLAN':
+                kids_vlan = net
+        
+        if not kids_vlan:
+            print("ERROR: Kids VLAN not found!")
+            return
+        
+        print(f"\nFound Kids VLAN: {kids_vlan['_id']}")
+        
+        # Step 2: Build the payload exactly as the API expects
+        print("\n2. Building firewall policy payload...")
+        
+        policy_data = {
+            "name": "Block Kids VLAN to LAN",
+            "ruleset": "LAN_IN",
+            "action": "drop",
+            "index": 3000,
+            "enabled": True,
+            "logging": False,
+            "protocol": "all",
+            "connection_state_type": "inclusive",
+            "connection_states": ["new", "established", "related", "invalid"],
+            "source": {
+                "match_opposite_ports": False,
+                "port_matching_type": "any",
+                "matching_target": "network_id",
+                "network_id": kids_vlan['_id'],
+                "zone_id": "lan"
+            },
+            "destination": {
+                "match_opposite_ports": False,
+                "port_matching_type": "any",
+                "matching_target": "zone",
+                "zone_id": "lan"
+            }
+        }
+        
+        print("Payload:")
+        print(json.dumps(policy_data, indent=2))
+        
+        # Step 3: Try to create the policy
+        print("\n3. Attempting to create firewall policy...")
+        
+        try:
+            result = await firewall_manager.create_firewall_policy(policy_data)
+            
+            if result:
+                print(f"SUCCESS! Created policy with ID: {result.id}")
+                print(f"Details: {json.dumps(result.raw, indent=2)}")
+            else:
+                print("FAILED: create_firewall_policy returned None")
+                
+                # Try to get more details
+                print("\n4. Checking existing policies to see if it was partially created...")
+                policies = await firewall_manager.get_firewall_policies(include_predefined=False)
+                for p in policies:
+                    if 'Kids' in p.name:
+                        print(f"  Found related policy: {p.name} ({p.id})")
+                
+        except Exception as e:
+            print(f"ERROR during creation: {e}")
+            import traceback
+            traceback.print_exc()
+        
+        # Step 5: Test the V2 API directly
+        print("\n5. Testing V2 API directly...")
+        from aiounifi.models.api import ApiRequestV2
+        
+        # Add required fields
+        policy_data['ipVersion'] = 'ipv4'
+        policy_data['schedule'] = {
+            'enabled': False,
+            'repeat_on_days': []
+        }
+        
+        # Don't wrap - send directly
+        api_request = ApiRequestV2(
+            method="post",
+            path="/firewall-policies",
+            data=policy_data  # No wrapper!
+        )
+        
+        try:
+            response = await connection_manager.request(api_request)
+            print(f"Direct V2 API response: {response}")
+        except Exception as e:
+            print(f"Direct V2 API error: {e}")
+            
+    except Exception as e:
+        logger.error(f"Test failed: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+if __name__ == "__main__":
+    asyncio.run(test_firewall_creation())

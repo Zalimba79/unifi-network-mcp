@@ -87,6 +87,49 @@ async def unifi_get_wan_failover_status() -> Dict[str, Any]:
 
 
 @server.tool()
+async def unifi_get_dream_machine_wan_status() -> Dict[str, Any]:
+    """
+    Get detailed WAN status for Dream Machine integrated controllers (READ-ONLY).
+    
+    Dream Machine Pro and other integrated devices don't appear as managed devices
+    because they ARE the controller itself. This tool extracts WAN information
+    from system and health endpoints instead.
+    
+    Returns:
+        Comprehensive WAN status including:
+        - Controller model and version
+        - WAN health information
+        - Port configurations
+        - Uplink settings
+        - Internet connectivity status
+        
+    Example response:
+        {
+            "success": true,
+            "is_dream_machine": true,
+            "data": {
+                "controller": {
+                    "model": "UDM-Pro",
+                    "version": "3.2.7",
+                    "mac": "78:45:58:c1:36:fb"
+                },
+                "health": {
+                    "status": "ok",
+                    "wan_ip": "203.0.113.10",
+                    "uptime": 86400
+                }
+            }
+        }
+    """
+    try:
+        dm_status = await wan_manager.get_dream_machine_wan_status()
+        return dm_status
+    except Exception as e:
+        logger.error(f"Failed to get Dream Machine WAN status: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@server.tool()
 async def unifi_check_wan_connectivity() -> Dict[str, Any]:
     """
     Check current WAN connectivity and internet access (READ-ONLY).
@@ -186,5 +229,5 @@ async def unifi_update_wan_type(
 
 
 logger.info(f"WAN tools module loaded (READ-ONLY mode), server instance: {server}")
-logger.info("WAN tools registered: unifi_get_wan_status, unifi_get_wan_failover_status, unifi_check_wan_connectivity")
+logger.info("WAN tools registered: unifi_get_wan_status, unifi_get_wan_failover_status, unifi_get_dream_machine_wan_status, unifi_check_wan_connectivity")
 logger.info("SAFETY: WAN modification tools are disabled to prevent accidental internet loss")
