@@ -17,6 +17,8 @@ class WANManager:
     async def get_wan_configuration(self) -> Dict[str, Any]:
         """
         Get current WAN configuration including all uplinks.
+        For Dream Machine Pro and other integrated controllers, this extracts
+        WAN info from system/health endpoints since they don't appear as managed devices.
         
         Returns:
             Dictionary with WAN configuration details
@@ -24,76 +26,142 @@ class WANManager:
         await self.connection.ensure_connected()
         
         try:
-            # Get gateway device info for WAN status
+            wan_config = {
+                "success": True,
+                "wan_interfaces": []
+            }
+            
+            # First try to get WAN info from devices (for separate gateways)
             devices = self.connection.controller.devices.values()
             gateway_device = None
             
             for device in devices:
-                if device.type in ['ugw', 'udm', 'uxg', 'udmp']:
+                if hasattr(device, 'type') and device.type in ['ugw', 'udm', 'uxg', 'udmp']:
                     gateway_device = device
                     break
             
-            if not gateway_device:
-                return {
-                    "success": False,
-                    "error": "No gateway device found"
-                }
+            if gateway_device:
+                # Found a managed gateway device
+                wan_config["gateway_mac"] = gateway_device.mac
+                wan_config["gateway_model"] = gateway_device.model
+                wan_config["source"] = "device"
+                
+                # Extract WAN interface information
+                if hasattr(gateway_device, 'wan1'):
+                    wan1 = gateway_device.wan1
+                    wan_config["wan_interfaces"].append({
+                        "name": "wan1",
+                        "ip": wan1.get('ip'),
+                        "netmask": wan1.get('netmask'),
+                        "gateway": wan1.get('gateway'),
+                        "dns": wan1.get('dns'),
+                        "type": wan1.get('type', 'dhcp'),
+                        "enabled": wan1.get('enable', True),
+                        "uptime": wan1.get('uptime')
+                    })
+                
+                if hasattr(gateway_device, 'wan2'):
+                    wan2 = gateway_device.wan2
+                    wan_config["wan_interfaces"].append({
+                        "name": "wan2",
+                        "ip": wan2.get('ip'),
+                        "netmask": wan2.get('netmask'),
+                        "gateway": wan2.get('gateway'),
+                        "dns": wan2.get('dns'),
+                        "type": wan2.get('type', 'disabled'),
+                        "enabled": wan2.get('enable', False),
+                        "uptime": wan2.get('uptime')
+                    })
+            else:
+                # No managed gateway - try system info (for Dream Machine Pro etc.)
+                logger.info("No managed gateway device found, checking system info for integrated controller/gateway")
+                
+                # Get system info to identify controller type
+                api_request = ApiRequest(
+                    method="get",
+                    path="/stat/sysinfo"
+                )
+                sysinfo = await self.connection.request(api_request)
+                
+                if sysinfo and isinstance(sysinfo, dict):
+                    wan_config["gateway_model"] = sysinfo.get('model', 'Unknown')
+                    wan_config["gateway_version"] = sysinfo.get('version', 'Unknown')
+                    wan_config["source"] = "sysinfo"
+                    
+                    # For Dream Machines, check health status for WAN info
+                    if 'dream' in str(sysinfo.get('model', '')).lower() or 'udm' in str(sysinfo.get('model', '')).lower():
+                        # Get health status which contains WAN info for integrated gateways
+                        health_request = ApiRequest(
+                            method="get",
+                            path="/stat/health"
+                        )
+                        health_data = await self.connection.request(health_request)
+                        
+                        if health_data and isinstance(health_data, list):
+                            for subsystem in health_data:
+                                if subsystem.get('subsystem') == 'wan':
+                                    wan_config["wan_health"] = {
+                                        "status": subsystem.get('status'),
+                                        "num_adopted": subsystem.get('num_adopted', 0),
+                                        "num_disconnected": subsystem.get('num_disconnected', 0),
+                                        "num_pending": subsystem.get('num_pending', 0),
+                                        "wan_ip": subsystem.get('wan_ip'),
+                                        "gw_name": subsystem.get('gw_name'),
+                                        "gw_mac": subsystem.get('gw_mac'),
+                                        "gw_version": subsystem.get('gw_version'),
+                                        "uptime": subsystem.get('uptime'),
+                                        "latency": subsystem.get('latency'),
+                                        "xput_up": subsystem.get('xput_up'),
+                                        "xput_down": subsystem.get('xput_down'),
+                                        "speedtest_status": subsystem.get('speedtest_status'),
+                                        "speedtest_lastrun": subsystem.get('speedtest_lastrun'),
+                                        "speedtest_ping": subsystem.get('speedtest_ping')
+                                    }
+                                    
+                                    # If we found a gateway MAC in health, record it
+                                    if subsystem.get('gw_mac'):
+                                        wan_config["gateway_mac"] = subsystem.get('gw_mac')
+                                    break
+                        
+                        # Try to get more detailed WAN info from site stats
+                        site_request = ApiRequest(
+                            method="get",
+                            path="/stat/sites"
+                        )
+                        site_data = await self.connection.request(site_request)
+                        
+                        if site_data and isinstance(site_data, list) and len(site_data) > 0:
+                            site = site_data[0]
+                            if 'wan_ip' in site:
+                                wan_config["wan_interfaces"].append({
+                                    "name": "wan",
+                                    "ip": site.get('wan_ip'),
+                                    "type": "detected",
+                                    "enabled": True
+                                })
             
-            wan_config = {
-                "success": True,
-                "gateway_mac": gateway_device.mac,
-                "gateway_model": gateway_device.model,
-                "wan_interfaces": []
-            }
-            
-            # Extract WAN interface information
-            if hasattr(gateway_device, 'wan1'):
-                wan1 = gateway_device.wan1
-                wan_config["wan_interfaces"].append({
-                    "name": "wan1",
-                    "ip": wan1.get('ip'),
-                    "netmask": wan1.get('netmask'),
-                    "gateway": wan1.get('gateway'),
-                    "dns": wan1.get('dns'),
-                    "type": wan1.get('type', 'dhcp'),
-                    "enabled": wan1.get('enable', True),
-                    "uptime": wan1.get('uptime')
-                })
-            
-            if hasattr(gateway_device, 'wan2'):
-                wan2 = gateway_device.wan2
-                wan_config["wan_interfaces"].append({
-                    "name": "wan2",
-                    "ip": wan2.get('ip'),
-                    "netmask": wan2.get('netmask'),
-                    "gateway": wan2.get('gateway'),
-                    "dns": wan2.get('dns'),
-                    "type": wan2.get('type', 'disabled'),
-                    "enabled": wan2.get('enable', False),
-                    "uptime": wan2.get('uptime')
-                })
-            
-            # Get WAN network configuration
+            # Get WAN network configuration (works for all setups)
             api_request = ApiRequest(
                 method="get",
                 path="/rest/networkconf"
             )
             networks = await self.connection.request(api_request)
             
-            for network in networks:
-                if network.get('purpose') == 'wan':
-                    wan_config['wan_network'] = {
-                        '_id': network.get('_id'),
-                        'name': network.get('name'),
-                        'wan_type': network.get('wan_type', 'dhcp'),
-                        'wan_ip': network.get('wan_ip'),
-                        'wan_netmask': network.get('wan_netmask'),
-                        'wan_gateway': network.get('wan_gateway'),
-                        'wan_dns1': network.get('wan_dns1'),
-                        'wan_dns2': network.get('wan_dns2'),
-                        'wan_dhcp_options': network.get('wan_dhcp_options', [])
-                    }
-                    break
+            if networks and isinstance(networks, list):
+                for network in networks:
+                    if network.get('purpose') == 'wan':
+                        wan_config['wan_network'] = {
+                            '_id': network.get('_id'),
+                            'name': network.get('name'),
+                            'wan_type': network.get('wan_type', 'dhcp'),
+                            'wan_ip': network.get('wan_ip'),
+                            'wan_netmask': network.get('wan_netmask'),
+                            'wan_gateway': network.get('wan_gateway'),
+                            'wan_dns1': network.get('wan_dns1'),
+                            'wan_dns2': network.get('wan_dns2'),
+                            'wan_dhcp_options': network.get('wan_dhcp_options', [])
+                        }
+                        break
             
             return wan_config
             
@@ -282,3 +350,127 @@ class WANManager:
         except Exception as e:
             logger.error(f"Failed to set WAN failover: {e}")
             return False
+    
+    async def get_dream_machine_wan_status(self) -> Dict[str, Any]:
+        """
+        Get detailed WAN status specifically for Dream Machine integrated controllers.
+        This method uses multiple endpoints to gather comprehensive WAN information
+        when the gateway is the controller itself (not a separate managed device).
+        
+        Returns:
+            Detailed WAN status including IP, uptime, speed test results, and more
+        """
+        await self.connection.ensure_connected()
+        
+        try:
+            wan_status = {
+                "success": True,
+                "is_dream_machine": False,
+                "data": {}
+            }
+            
+            # Step 1: Confirm this is a Dream Machine
+            api_request = ApiRequest(
+                method="get",
+                path="/stat/sysinfo"
+            )
+            sysinfo = await self.connection.request(api_request)
+            
+            if not sysinfo or not isinstance(sysinfo, dict):
+                return {"success": False, "error": "Could not get system info"}
+            
+            model = str(sysinfo.get('model', '')).lower()
+            if not ('dream' in model or 'udm' in model or 'uxg' in model):
+                return {
+                    "success": False,
+                    "error": f"Not a Dream Machine (model: {sysinfo.get('model')})"
+                }
+            
+            wan_status["is_dream_machine"] = True
+            wan_status["data"]["controller"] = {
+                "model": sysinfo.get('model'),
+                "version": sysinfo.get('version'),
+                "hostname": sysinfo.get('hostname'),
+                "mac": sysinfo.get('mac')
+            }
+            
+            # Step 2: Get WAN health status
+            health_request = ApiRequest(
+                method="get",
+                path="/stat/health"
+            )
+            health_data = await self.connection.request(health_request)
+            
+            if health_data and isinstance(health_data, list):
+                for subsystem in health_data:
+                    if subsystem.get('subsystem') == 'wan':
+                        wan_status["data"]["health"] = subsystem
+                        break
+            
+            # Step 3: Get detailed device stats (even if not in device list)
+            # Try to get the Dream Machine's own stats
+            if sysinfo.get('mac'):
+                try:
+                    device_stat_request = ApiRequest(
+                        method="get",
+                        path=f"/stat/device/{sysinfo['mac']}"
+                    )
+                    device_stats = await self.connection.request(device_stat_request)
+                    if device_stats:
+                        wan_status["data"]["device_stats"] = device_stats
+                except Exception as e:
+                    logger.debug(f"Could not get device stats for controller: {e}")
+            
+            # Step 4: Get port information (WAN is typically port 9)
+            try:
+                port_request = ApiRequest(
+                    method="get",
+                    path="/rest/portconf"
+                )
+                port_configs = await self.connection.request(port_request)
+                if port_configs and isinstance(port_configs, list):
+                    wan_status["data"]["port_configs"] = port_configs
+            except Exception as e:
+                logger.debug(f"Could not get port configs: {e}")
+            
+            # Step 5: Get uplink information
+            try:
+                uplink_request = ApiRequest(
+                    method="get",
+                    path="/rest/setting/connectivity"
+                )
+                uplink_settings = await self.connection.request(uplink_request)
+                if uplink_settings:
+                    wan_status["data"]["uplink_settings"] = uplink_settings
+            except Exception as e:
+                logger.debug(f"Could not get uplink settings: {e}")
+            
+            # Step 6: Get internet connectivity status
+            try:
+                internet_request = ApiRequest(
+                    method="get",
+                    path="/stat/wan"
+                )
+                internet_status = await self.connection.request(internet_request)
+                if internet_status:
+                    wan_status["data"]["internet_status"] = internet_status
+            except Exception as e:
+                logger.debug(f"Could not get internet status: {e}")
+            
+            # Step 7: Get routing table for WAN gateway info
+            try:
+                routing_request = ApiRequest(
+                    method="get",
+                    path="/stat/routing"
+                )
+                routing_info = await self.connection.request(routing_request)
+                if routing_info:
+                    wan_status["data"]["routing"] = routing_info
+            except Exception as e:
+                logger.debug(f"Could not get routing info: {e}")
+            
+            return wan_status
+            
+        except Exception as e:
+            logger.error(f"Failed to get Dream Machine WAN status: {e}")
+            return {"success": False, "error": str(e)}
